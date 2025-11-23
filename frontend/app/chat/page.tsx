@@ -26,7 +26,6 @@ export default function ChatPage() {
   const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
   const [historyAccess, setHistoryAccess] = useState<{ [key: number]: boolean }>({});
   const [availableUsers, setAvailableUsers] = useState<User[]>([]);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!user || !token) {
@@ -132,16 +131,14 @@ export default function ChatPage() {
   const handleSendMessage = () => {
     if (!socket || !currentRoom || !inputMessage.trim()) return;
     socket.emit('sendMessage', { roomId: currentRoom.id, content: inputMessage });
+    socket.emit('typing', { roomId: currentRoom.id, isTyping: false });
     setInputMessage('');
   };
 
-  const handleTyping = () => {
+  const handleTyping = (value: string) => {
     if (!socket || !currentRoom) return;
-    socket.emit('typing', { roomId: currentRoom.id, isTyping: true });
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(() => {
-      socket.emit('typing', { roomId: currentRoom.id, isTyping: false });
-    }, 1000);
+    const hasText = value.trim().length > 0;
+    socket.emit('typing', { roomId: currentRoom.id, isTyping: hasText });
   };
 
   const handleReaction = (messageId: number, emoji: string) => {
@@ -192,182 +189,221 @@ export default function ChatPage() {
   const typingList = Object.values(typingUsers);
 
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
-      <div style={{ width: '200px', borderRight: '1px solid #ccc', padding: '10px' }}>
-        <h3>Rooms</h3>
-        {rooms.map((room) => (
-          <div
-            key={room.id}
-            onClick={() => setCurrentRoom(room)}
-            style={{
-              padding: '8px',
-              cursor: 'pointer',
-              backgroundColor: currentRoom?.id === room.id ? '#e0e0e0' : 'transparent',
-            }}
-          >
-            {room.name}
+    <div className="flex h-screen bg-[#111b21] font-sans">
+      <div className="w-[300px] bg-[#111b21] border-r border-[#222d34] flex flex-col">
+        <div className="px-4 py-3 bg-[#202c33] flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+              style={{ backgroundColor: user.color }}
+            >
+              {user.username.charAt(0).toUpperCase()}
+            </div>
+            <span className="text-[#e9edef] font-medium">{user.username}</span>
           </div>
-        ))}
-        <button
-          onClick={() => setShowCreateRoom(true)}
-          style={{ marginTop: '10px', padding: '8px', width: '100%' }}
-        >
-          Create Room
-        </button>
-        <button
-          onClick={() => setShowProfile(true)}
-          style={{ marginTop: '10px', padding: '8px', width: '100%' }}
-        >
-          Profile
-        </button>
-        <button onClick={logout} style={{ marginTop: '10px', padding: '8px', width: '100%' }}>
-          Logout
-        </button>
+          <div className="flex gap-2">
+            <button onClick={() => setShowProfile(true)} className="bg-transparent border-none text-[#aebac1] cursor-pointer text-xl">⚙</button>
+            <button onClick={logout} className="bg-transparent border-none text-[#aebac1] cursor-pointer text-lg">↪</button>
+          </div>
+        </div>
+        <div className="px-3 py-2">
+          <button
+            onClick={() => setShowCreateRoom(true)}
+            className="w-full py-2.5 bg-[#00a884] text-[#111b21] border-none rounded-lg cursor-pointer font-semibold text-sm"
+          >
+            + New Chat
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {rooms.map((room) => (
+            <div
+              key={room.id}
+              onClick={() => setCurrentRoom(room)}
+              className={`px-4 py-3 cursor-pointer border-b border-[#222d34] flex items-center gap-3 ${currentRoom?.id === room.id ? 'bg-[#2a3942]' : 'bg-transparent hover:bg-[#202c33]'}`}
+            >
+              <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center text-[#111b21] font-bold text-lg">
+                {room.name.charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <div className="text-[#e9edef] font-medium">{room.name}</div>
+                <div className="text-[#8696a0] text-[13px]">{room.isGeneral ? 'General' : 'Private'}</div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {currentRoom && (
+      <div className="flex-1 flex flex-col bg-[#0b141a]">
+        {currentRoom ? (
           <>
-            <div style={{ padding: '10px', borderBottom: '1px solid #ccc', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2>{currentRoom.name}</h2>
+            <div className="px-4 py-2.5 bg-[#202c33] flex justify-between items-center border-b border-[#222d34]">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#00a884] flex items-center justify-center text-[#111b21] font-bold">
+                  {currentRoom.name.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div className="text-[#e9edef] font-medium">{currentRoom.name}</div>
+                  <div className="text-[#8696a0] text-[13px]">click to see group info</div>
+                </div>
+              </div>
               {!currentRoom.isGeneral && (
                 <button
                   onClick={() => setShowAddUser(true)}
-                  style={{ padding: '5px 10px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  className="px-4 py-2 bg-[#00a884] text-[#111b21] border-none rounded-full cursor-pointer font-semibold text-[13px]"
                 >
-                  + Add User
+                  + Add
                 </button>
               )}
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-              {messages.map((msg) => {
-                const reactionCounts = msg.reactions.reduce((acc, r) => {
-                  acc[r.emoji] = (acc[r.emoji] || 0) + 1;
-                  return acc;
-                }, {} as { [emoji: string]: number });
+            <div className="flex-1 overflow-y-auto overflow-x-hidden px-8 py-6 bg-[#0b141a]">
+              <div className="flex flex-col gap-3">
+                {messages.map((msg) => {
+                  const isOwn = msg.user.id === user.id;
+                  const reactionCounts = msg.reactions.reduce((acc, r) => {
+                    acc[r.emoji] = (acc[r.emoji] || 0) + 1;
+                    return acc;
+                  }, {} as { [emoji: string]: number });
 
-                return (
-                  <div key={msg.id} style={{ marginBottom: '15px', position: 'relative' }} onMouseEnter={(e) => {
-                    const btn = e.currentTarget.querySelector('.reaction-btn') as HTMLElement;
-                    if (btn) btn.style.display = 'inline-block';
-                  }} onMouseLeave={(e) => {
-                    const btn = e.currentTarget.querySelector('.reaction-btn') as HTMLElement;
-                    if (btn) btn.style.display = 'none';
-                  }}>
-                    <div>
-                      <span style={{ color: msg.user.color, fontWeight: 'bold' }}>
-                        {msg.user.username}
-                      </span>
-                      <span style={{ marginLeft: '10px', fontSize: '12px', color: '#999' }}>
-                        {new Date(msg.createdAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <div>{msg.content}</div>
-                    <div style={{ marginTop: '5px', display: 'flex', gap: '5px', alignItems: 'center' }}>
-                      {Object.entries(reactionCounts).map(([emoji, count]) => (
-                        <span
-                          key={emoji}
-                          onClick={() => handleReaction(msg.id, emoji)}
-                          style={{
-                            padding: '2px 8px',
-                            backgroundColor: '#f0f0f0',
-                            borderRadius: '12px',
-                            fontSize: '14px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          {emoji} {count}
-                        </span>
-                      ))}
-                      <button
-                        className="reaction-btn"
-                        onClick={(e) => {
-                          const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                          menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+                  return (
+                    <div key={msg.id} style={{ display: 'flex', justifyContent: isOwn ? 'flex-end' : 'flex-start' }}>
+                      <div
+                        style={{
+                          maxWidth: '65%',
+                          minWidth: '180px',
+                          padding: '10px 14px 24px 14px',
+                          position: 'relative',
+                          backgroundColor: isOwn ? '#005c4b' : '#1f2c34',
+                          borderRadius: isOwn ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
+                          boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
                         }}
-                        style={{ display: 'none', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '16px' }}
+                        className="group"
                       >
-                        +
-                      </button>
-                      <div style={{ display: 'none', gap: '5px', position: 'absolute', backgroundColor: 'white', border: '1px solid #ccc', borderRadius: '8px', padding: '5px', zIndex: 10 }}>
-                        {['👍', '❤️', '😂', '😮'].map((emoji) => (
-                          <button
-                            key={emoji}
-                            onClick={(e) => {
-                              handleReaction(msg.id, emoji);
-                              (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
-                            }}
-                            style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '20px' }}
-                          >
-                            {emoji}
-                          </button>
-                        ))}
+                        {!isOwn && (
+                          <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', color: msg.user.color }}>
+                            {msg.user.username}
+                          </div>
+                        )}
+                        <div style={{ color: '#e9edef', fontSize: '15px', lineHeight: '1.4', paddingRight: '50px' }}>{msg.content}</div>
+                        <div style={{ position: 'absolute', bottom: '8px', right: '12px' }}>
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        {Object.keys(reactionCounts).length > 0 && (
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {Object.entries(reactionCounts).map(([emoji, count]) => (
+                              <span
+                                key={emoji}
+                                onClick={() => handleReaction(msg.id, emoji)}
+                                className="px-2 py-1 bg-[#ffffff15] rounded-full text-sm cursor-pointer text-[#e9edef] hover:bg-[#ffffff25]"
+                              >
+                                {emoji} {count}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <button
+                          onClick={(e) => {
+                            const menu = e.currentTarget.nextElementSibling as HTMLElement;
+                            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+                          }}
+                          className="absolute top-2 -right-9 opacity-0 group-hover:opacity-100 bg-[#1f2c34] rounded-full w-8 h-8 flex items-center justify-center border-none cursor-pointer text-base transition-opacity shadow-md"
+                        >
+                          😊
+                        </button>
+                        <div className="hidden absolute -top-12 right-0 bg-[#233138] rounded-2xl px-3 py-2 gap-2 shadow-xl z-10">
+                          {['👍', '❤️', '😂', '😮'].map((emoji) => (
+                            <button
+                              key={emoji}
+                              onClick={(e) => {
+                                handleReaction(msg.id, emoji);
+                                (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+                              }}
+                              className="border-none bg-transparent cursor-pointer text-2xl hover:scale-125 transition-transform"
+                            >
+                              {emoji}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-              {typingList.length > 0 && (
-                <div style={{ fontStyle: 'italic', color: '#666' }}>
-                  {typingList.length === 1
-                    ? `${typingList[0]} est en train d'écrire...`
-                    : `${typingList.join(', ')} sont en train d'écrire...`}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
-            <div style={{ padding: '10px', borderTop: '1px solid #ccc', display: 'flex' }}>
+            {typingList.length > 0 && (
+              <div className="px-6 py-2 bg-[#0b141a]">
+                <div className="flex items-center gap-2 text-[#8696a0]">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                    <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                    <span className="w-2 h-2 bg-[#8696a0] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  </div>
+                  <span className="text-sm">
+                    {typingList.length === 1
+                      ? `${typingList[0]} écrit...`
+                      : `${typingList.join(', ')} écrivent...`}
+                  </span>
+                </div>
+              </div>
+            )}
+            <div className="px-4 py-3 bg-[#202c33] flex gap-3 items-center">
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => {
                   setInputMessage(e.target.value);
-                  handleTyping();
+                  handleTyping(e.target.value);
                 }}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                style={{ flex: 1, padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }}
+                placeholder="Type a message"
+                className="flex-1 px-4 py-3 bg-[#2a3942] border-none rounded-lg text-[#e9edef] text-[15px] outline-none"
               />
               <button
                 onClick={handleSendMessage}
-                style={{ marginLeft: '10px', padding: '8px 20px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                className="w-12 h-12 bg-[#00a884] border-none rounded-full cursor-pointer flex items-center justify-center"
               >
-                Send
+                <svg viewBox="0 0 24 24" width="24" height="24" fill="#111b21"><path d="M1.101 21.757 23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path></svg>
               </button>
             </div>
           </>
-        )}
-        {!currentRoom && (
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            Select a room
+        ) : (
+          <div className="flex-1 flex flex-col justify-center items-center text-[#8696a0]">
+            <div className="text-[32px] mb-4">💬</div>
+            <div className="text-xl font-light">Select a chat to start messaging</div>
           </div>
         )}
       </div>
 
       {showProfile && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '300px' }}>
-            <h3>Profile</h3>
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
+          <div className="bg-[#111b21] p-6 rounded-xl w-[340px] border border-[#222d34]">
+            <h3 className="text-[#e9edef] mb-5 font-medium">Profile Settings</h3>
             <input
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Username"
-              style={{ width: '100%', padding: '8px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
+              className="w-full p-3 mb-3 bg-[#2a3942] border-none rounded-lg text-[#e9edef] text-sm outline-none box-border"
             />
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              style={{ width: '100%', padding: '8px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
-            />
+            <div className="mb-3">
+              <label className="text-[#8696a0] text-[13px] block mb-2">Your color</label>
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="w-full h-10 border-none rounded-lg cursor-pointer"
+              />
+            </div>
             <button
               onClick={handleUpdateProfile}
-              style={{ width: '100%', padding: '8px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '10px' }}
+              className="w-full p-3 bg-[#00a884] text-[#111b21] border-none rounded-lg cursor-pointer font-semibold text-sm mb-2"
             >
               Save
             </button>
             <button
               onClick={() => setShowProfile(false)}
-              style={{ width: '100%', padding: '8px', backgroundColor: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              className="w-full p-3 bg-[#2a3942] text-[#e9edef] border-none rounded-lg cursor-pointer text-sm"
             >
               Cancel
             </button>
@@ -376,20 +412,21 @@ export default function ChatPage() {
       )}
 
       {showCreateRoom && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '300px' }}>
-            <h3>Create Room</h3>
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
+          <div className="bg-[#111b21] p-6 rounded-xl w-[340px] border border-[#222d34]">
+            <h3 className="text-[#e9edef] mb-5 font-medium">Create New Chat</h3>
             <input
               type="text"
               value={newRoomName}
               onChange={(e) => setNewRoomName(e.target.value)}
-              placeholder="Room name"
-              style={{ width: '100%', padding: '8px', marginBottom: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
+              placeholder="Chat name"
+              className="w-full p-3 mb-4 bg-[#2a3942] border-none rounded-lg text-[#e9edef] text-sm outline-none box-border"
             />
-            <div style={{ marginBottom: '10px' }}>
+            <div className="mb-4 max-h-[200px] overflow-y-auto">
+              <label className="text-[#8696a0] text-[13px] block mb-2">Add participants</label>
               {availableUsers.map((u) => (
-                <div key={u.id} style={{ marginBottom: '5px' }}>
-                  <label>
+                <div key={u.id} className={`p-2 rounded-lg mb-1 flex items-center justify-between ${selectedUsers.includes(u.id) ? 'bg-[#2a3942]' : 'bg-transparent'}`}>
+                  <label className="flex items-center gap-2.5 cursor-pointer text-[#e9edef]">
                     <input
                       type="checkbox"
                       checked={selectedUsers.includes(u.id)}
@@ -400,17 +437,17 @@ export default function ChatPage() {
                           setSelectedUsers(selectedUsers.filter((id) => id !== u.id));
                         }
                       }}
+                      className="accent-[#00a884]"
                     />
                     {u.username}
                   </label>
                   {selectedUsers.includes(u.id) && (
-                    <label style={{ marginLeft: '10px' }}>
+                    <label className="flex items-center gap-1.5 text-[#8696a0] text-xs">
                       <input
                         type="checkbox"
                         checked={historyAccess[u.id] || false}
-                        onChange={(e) =>
-                          setHistoryAccess({ ...historyAccess, [u.id]: e.target.checked })
-                        }
+                        onChange={(e) => setHistoryAccess({ ...historyAccess, [u.id]: e.target.checked })}
+                        className="accent-[#00a884]"
                       />
                       History
                     </label>
@@ -420,13 +457,13 @@ export default function ChatPage() {
             </div>
             <button
               onClick={handleCreateRoom}
-              style={{ width: '100%', padding: '8px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '10px' }}
+              className="w-full p-3 bg-[#00a884] text-[#111b21] border-none rounded-lg cursor-pointer font-semibold text-sm mb-2"
             >
               Create
             </button>
             <button
               onClick={() => setShowCreateRoom(false)}
-              style={{ width: '100%', padding: '8px', backgroundColor: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              className="w-full p-3 bg-[#2a3942] text-[#e9edef] border-none rounded-lg cursor-pointer text-sm"
             >
               Cancel
             </button>
@@ -435,13 +472,13 @@ export default function ChatPage() {
       )}
 
       {showAddUser && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', width: '300px' }}>
-            <h3>Add Users to {currentRoom?.name}</h3>
-            <div style={{ marginBottom: '10px' }}>
+        <div className="fixed inset-0 bg-black/60 flex justify-center items-center z-50">
+          <div className="bg-[#111b21] p-6 rounded-xl w-[340px] border border-[#222d34]">
+            <h3 className="text-[#e9edef] mb-5 font-medium">Add to {currentRoom?.name}</h3>
+            <div className="mb-4 max-h-[200px] overflow-y-auto">
               {availableUsers.map((u) => (
-                <div key={u.id} style={{ marginBottom: '5px' }}>
-                  <label>
+                <div key={u.id} className={`p-2 rounded-lg mb-1 flex items-center justify-between ${selectedUsers.includes(u.id) ? 'bg-[#2a3942]' : 'bg-transparent'}`}>
+                  <label className="flex items-center gap-2.5 cursor-pointer text-[#e9edef]">
                     <input
                       type="checkbox"
                       checked={selectedUsers.includes(u.id)}
@@ -452,17 +489,17 @@ export default function ChatPage() {
                           setSelectedUsers(selectedUsers.filter((id) => id !== u.id));
                         }
                       }}
+                      className="accent-[#00a884]"
                     />
                     {u.username}
                   </label>
                   {selectedUsers.includes(u.id) && (
-                    <label style={{ marginLeft: '10px' }}>
+                    <label className="flex items-center gap-1.5 text-[#8696a0] text-xs">
                       <input
                         type="checkbox"
                         checked={historyAccess[u.id] !== false}
-                        onChange={(e) =>
-                          setHistoryAccess({ ...historyAccess, [u.id]: e.target.checked })
-                        }
+                        onChange={(e) => setHistoryAccess({ ...historyAccess, [u.id]: e.target.checked })}
+                        className="accent-[#00a884]"
                       />
                       History
                     </label>
@@ -472,7 +509,7 @@ export default function ChatPage() {
             </div>
             <button
               onClick={handleAddUserToRoom}
-              style={{ width: '100%', padding: '8px', backgroundColor: '#0070f3', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginBottom: '10px' }}
+              className="w-full p-3 bg-[#00a884] text-[#111b21] border-none rounded-lg cursor-pointer font-semibold text-sm mb-2"
             >
               Add
             </button>
@@ -482,7 +519,7 @@ export default function ChatPage() {
                 setSelectedUsers([]);
                 setHistoryAccess({});
               }}
-              style={{ width: '100%', padding: '8px', backgroundColor: '#ccc', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+              className="w-full p-3 bg-[#2a3942] text-[#e9edef] border-none rounded-lg cursor-pointer text-sm"
             >
               Cancel
             </button>
