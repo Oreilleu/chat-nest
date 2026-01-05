@@ -26,34 +26,43 @@ export class ChatService {
     private reactionRepository: Repository<Reaction>,
     private jwtService: JwtService,
   ) {
-    this.initGeneralRoom();
+    void this.initGeneralRoom();
   }
 
   async initGeneralRoom() {
-    const existingRoom = await this.roomRepository.findOne({ where: { isGeneral: true } });
+    const existingRoom = await this.roomRepository.findOne({
+      where: { isGeneral: true },
+    });
     if (!existingRoom) {
-      const room = this.roomRepository.create({ name: 'General', isGeneral: true });
+      const room = this.roomRepository.create({
+        name: 'General',
+        isGeneral: true,
+      });
       await this.roomRepository.save(room);
     }
   }
 
   async getUserFromSocket(socket: Socket): Promise<User | null> {
-    const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
+    const token: string | undefined =
+      (socket.handshake.auth.token as string | undefined) ||
+      socket.handshake.headers.authorization?.split(' ')[1];
     if (!token) return null;
 
     try {
-      const payload = this.jwtService.verify(token, { secret: process.env.JWT_SECRET || 'SECRET_KEY' });
+      const payload: { sub: number } = this.jwtService.verify(token, {
+        secret: process.env.JWT_SECRET || 'SECRET_KEY',
+      });
       return this.userRepository.findOne({ where: { id: payload.sub } });
     } catch {
       return null;
     }
   }
 
-  async handleConnection(userId: number, socketId: string) {
+  handleConnection(userId: number, socketId: string) {
     this.connectedUsers.set(userId, socketId);
   }
 
-  async handleDisconnect(socketId: string) {
+  handleDisconnect(socketId: string) {
     for (const [userId, sid] of this.connectedUsers.entries()) {
       if (sid === socketId) {
         this.connectedUsers.delete(userId);
@@ -62,7 +71,7 @@ export class ChatService {
     }
   }
 
-  async getSocketIdByUserId(userId: number): Promise<string | null> {
+  getSocketIdByUserId(userId: number): string | null {
     return this.connectedUsers.get(userId) || null;
   }
 
@@ -71,13 +80,15 @@ export class ChatService {
   }
 
   async getUserRooms(userId: number) {
-    const generalRoom = await this.roomRepository.findOne({ where: { isGeneral: true } });
+    const generalRoom = await this.roomRepository.findOne({
+      where: { isGeneral: true },
+    });
     const userRooms = await this.roomUserRepository.find({
       where: { user: { id: userId } },
       relations: ['room'],
     });
-    const rooms = userRooms.map(ru => ru.room);
-    if (generalRoom && !rooms.find(r => r.id === generalRoom.id)) {
+    const rooms = userRooms.map((ru) => ru.room);
+    if (generalRoom && !rooms.find((r) => r.id === generalRoom.id)) {
       rooms.unshift(generalRoom);
     }
     return rooms;
@@ -126,7 +137,9 @@ export class ChatService {
 
   async addReaction(userId: number, messageId: number, emoji: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
-    const message = await this.messageRepository.findOne({ where: { id: messageId } });
+    const message = await this.messageRepository.findOne({
+      where: { id: messageId },
+    });
     if (!user || !message) return null;
 
     const existingReaction = await this.reactionRepository.findOne({
@@ -147,7 +160,12 @@ export class ChatService {
     });
   }
 
-  async createRoom(creatorId: number, name: string, userIds: number[], historyAccess: { [userId: number]: boolean }) {
+  async createRoom(
+    creatorId: number,
+    name: string,
+    userIds: number[],
+    historyAccess: { [userId: number]: boolean },
+  ) {
     const room = this.roomRepository.create({ name });
     await this.roomRepository.save(room);
 
@@ -170,7 +188,11 @@ export class ChatService {
     });
   }
 
-  async addUserToRoom(roomId: number, userId: number, hasHistoryAccess: boolean) {
+  async addUserToRoom(
+    roomId: number,
+    userId: number,
+    hasHistoryAccess: boolean,
+  ) {
     const room = await this.roomRepository.findOne({ where: { id: roomId } });
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!room || !user) return null;

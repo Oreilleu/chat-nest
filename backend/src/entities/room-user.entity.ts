@@ -7,7 +7,7 @@ export class RoomUser {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Room, room => room.roomUsers)
+  @ManyToOne(() => Room, (room) => room.roomUsers)
   room: Room;
 
   @ManyToOne(() => User)

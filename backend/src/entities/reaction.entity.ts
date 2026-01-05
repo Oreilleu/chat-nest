@@ -10,7 +10,7 @@ export class Reaction {
   @Column()
   emoji: string;
 
-  @ManyToOne(() => Message, message => message.reactions)
+  @ManyToOne(() => Message, (message) => message.reactions)
   message: Message;
 
   @ManyToOne(() => User)

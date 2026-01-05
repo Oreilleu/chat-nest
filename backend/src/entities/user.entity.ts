@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  ManyToMany,
+} from 'typeorm';
 import { Message } from './message.entity';
 import { Room } from './room.entity';
 
@@ -16,9 +22,9 @@ export class User {
   @Column({ default: '#000000' })
   color: string;
 
-  @OneToMany(() => Message, message => message.user)
+  @OneToMany(() => Message, (message) => message.user)
   messages: Message[];
 
-  @ManyToMany(() => Room, room => room.users)
+  @ManyToMany(() => Room, (room) => room.users)
   rooms: Room[];
 }

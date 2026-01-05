@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+  OneToMany,
+} from 'typeorm';
 import { User } from './user.entity';
 import { Room } from './room.entity';
 import { Reaction } from './reaction.entity';
@@ -14,12 +21,12 @@ export class Message {
   @CreateDateColumn()
   createdAt: Date;
 
-  @ManyToOne(() => User, user => user.messages)
+  @ManyToOne(() => User, (user) => user.messages)
   user: User;
 
-  @ManyToOne(() => Room, room => room.messages)
+  @ManyToOne(() => Room, (room) => room.messages)
   room: Room;
 
-  @OneToMany(() => Reaction, reaction => reaction.message)
+  @OneToMany(() => Reaction, (reaction) => reaction.message)
   reactions: Reaction[];
 }

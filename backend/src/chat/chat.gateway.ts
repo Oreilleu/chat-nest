@@ -25,15 +25,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.disconnect();
       return;
     }
-    await this.chatService.handleConnection(user.id, client.id);
+    this.chatService.handleConnection(user.id, client.id);
     const generalRoom = await this.chatService.getGeneralRoom();
     if (generalRoom) {
-      client.join(`room_${generalRoom.id}`);
+      void client.join(`room_${generalRoom.id}`);
     }
   }
 
-  async handleDisconnect(client: Socket) {
-    await this.chatService.handleDisconnect(client.id);
+  handleDisconnect(client: Socket) {
+    this.chatService.handleDisconnect(client.id);
   }
 
   @UseGuards(WsJwtGuard)
@@ -44,7 +44,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.chatService.getUserFromSocket(client);
     if (!user) return;
-    const message = await this.chatService.createMessage(user.id, data.roomId, data.content);
+    const message = await this.chatService.createMessage(
+      user.id,
+      data.roomId,
+      data.content,
+    );
     this.server.to(`room_${data.roomId}`).emit('newMessage', message);
   }
 
@@ -72,7 +76,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = await this.chatService.getUserFromSocket(client);
     if (!user) return;
-    const result = await this.chatService.addReaction(user.id, data.messageId, data.emoji);
+    const result = await this.chatService.addReaction(
+      user.id,
+      data.messageId,
+      data.emoji,
+    );
     const message = await this.chatService.getMessage(data.messageId);
     if (message && result) {
       if ('removed' in result) {
@@ -92,8 +100,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { roomId: number },
   ) {
-    client.join(`room_${data.roomId}`);
-    const messages = await this.chatService.getRoomMessages(data.roomId, client);
+    void client.join(`room_${data.roomId}`);
+    const messages = await this.chatService.getRoomMessages(
+      data.roomId,
+      client,
+    );
     client.emit('roomMessages', messages);
   }
 
@@ -110,19 +121,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('createRoom')
   async handleCreateRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { name: string; userIds: number[]; historyAccess: { [userId: number]: boolean } },
+    @MessageBody()
+    data: {
+      name: string;
+      userIds: number[];
+      historyAccess: { [userId: number]: boolean };
+    },
   ) {
     const user = await this.chatService.getUserFromSocket(client);
     if (!user) return;
-    const room = await this.chatService.createRoom(user.id, data.name, data.userIds, data.historyAccess);
+    const room = await this.chatService.createRoom(
+      user.id,
+      data.name,
+      data.userIds,
+      data.historyAccess,
+    );
     if (!room) return;
 
     for (const userId of [user.id, ...data.userIds]) {
-      const socketId = await this.chatService.getSocketIdByUserId(userId);
+      const socketId = this.chatService.getSocketIdByUserId(userId);
       if (socketId) {
         const socket = this.server.sockets.sockets.get(socketId);
         if (socket) {
-          socket.join(`room_${room.id}`);
+          void socket.join(`room_${room.id}`);
           socket.emit('roomCreated', room);
         }
       }
@@ -133,18 +154,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('addUserToRoom')
   async handleAddUserToRoom(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { roomId: number; userId: number; hasHistoryAccess: boolean },
+    @MessageBody()
+    data: { roomId: number; userId: number; hasHistoryAccess: boolean },
   ) {
     const user = await this.chatService.getUserFromSocket(client);
     if (!user) return;
-    const room = await this.chatService.addUserToRoom(data.roomId, data.userId, data.hasHistoryAccess);
+    const room = await this.chatService.addUserToRoom(
+      data.roomId,
+      data.userId,
+      data.hasHistoryAccess,
+    );
     if (!room) return;
 
-    const socketId = await this.chatService.getSocketIdByUserId(data.userId);
+    const socketId = this.chatService.getSocketIdByUserId(data.userId);
     if (socketId) {
       const socket = this.server.sockets.sockets.get(socketId);
       if (socket) {
-        socket.join(`room_${room.id}`);
+        void socket.join(`room_${room.id}`);
         socket.emit('roomCreated', room);
       }
     }
